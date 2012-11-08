@@ -1,0 +1,66 @@
+NTLM authentication for Axis2/C clients using default http transport is made possible by writing a wrapper over
+an existing NTLM client library.
+
+By default NTLM authentication is disabled in Axis2/C build. to enable NTLM authentication
+user need to configure Axis2/C with an external  NTLM library like Heimdal[1] or libntlm[2]
+
+NTLM support is added to Axis2/C client transport as a dynamically loadedable library called axis2c_ntlm.
+This library will wrap an external NTLM library like Heimdal to provide NTLM support. Axis2/C is shipped with
+a wrapper to Heimdal which you can find under heimdal subdirectory in <AXIS2C_SRC>/src/core/transport/http/sender/ntlm. 
+However Heimdal has a bug where the server authentication fail intermittently, with a message from server saying 
+provided credentials are not valid, even when the provided credentials are perfectly valid.
+
+We have tested successfully with a wrapper to libntlm[2] as well which is included here. This wrapper works fine.
+
+One can write a wrapper to any other external NTLM libary of his choice by implementing axis2_ntlm.h header file and
+studying the libntlm wrapper here.
+
+Following is the detail on how to use this wrapper with Axis2/C to enable NTLM authentication support for Axis2/C.
+
+1). Install libntlm. In dabian flavours you can install this by
+    apt-get install libntlm0
+
+2). Add the following entries into configure.ac which reside at the Axis2/C root source directory.
+
+AC_MSG_CHECKING(whether to build libntlm ntlm wrapper library)
+AC_ARG_ENABLE(libntlm, [  --enable-libntlm    
+                          build libntlm ntlm library wrapper (default=no)],
+[ case "${enableval}" in
+  no)
+    AC_MSG_RESULT(no)
+    NTLM_WRAPPER_DIR="default"
+    NTLM_SAMPLE_DIR=""
+    ;;
+  *)
+    AC_MSG_RESULT(yes)
+    NTLM_WRAPPER_DIR="libntlm"
+    NTLM_SAMPLE_DIR="ntlm"
+    CFLAGS="$CFLAGS -DAXIS2_LIBNTLM_ENABLED -DAXIS2_NTLM_ENABLED"
+    CPPFLAGS="$CPPFLAGS $NTLM_CFLAGS -DAXIS2_LIBNTLM_ENABLED -DAXIS2_NTLM_ENABLED"
+    LDFLAGS="$LDFLAGS $NTLM_LDFLAGS"
+    ;;
+  esac ],
+  AC_MSG_RESULT(no)
+)
+
+And under AC_CONFIG_FILES entry add following Makefile entry
+
+    src/core/transport/http/sender/ntlm/libntlm/Makefile
+
+3) Generate the configure script from configure.ac by running autogen.sh in Axis2/C root directory.
+
+4) Set the following flags
+
+export NTLM_LDFLAGS="-L/usr/local/lib -lntlm"
+Note: Provide the path correctly as in your system.
+
+5)Now to enable libntlm library at build time configure Axis2/C with following option
+configure --enable-libntlm=yes
+
+There are some examples of using NTLM authenticaion with Axis2/C clients under
+<AXIS2C_SOURCE>/samples/client/ntlm subdirecory.
+
+
+
+[1] http://www.h5l.org/
+[2] http://josefsson.org/libntlm/
